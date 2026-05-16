@@ -1,0 +1,76 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    width: 100wh;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: black;
+}
+
+#board {
+    display: grid;
+    grid-template-columns: repeat(8, 100px);
+    grid-template-rows: repeat(8, 100px);
+}
+
+.square {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    list-style: none;
+    text-decoration: none;
+    width: 100px;
+    height: 100px;
+
+    &.even {
+        background-color: blue;
+    }
+
+    &.odd {
+        background-color: inherit;
+    }
+}
+
+.piece {
+    background-image: url('assets/Atari\ 2600\ -\ Checkers\ -\ Miscellaneous\ -\ Boards\ &\ Pieces.png');
+    background-repeat: no-repeat;
+
+    background-size: 3180px 1380px;
+    width: 54px;
+    height: 84px;
+
+    display: inline-block;
+    filter: drop-shadow(0 0 0 transparent) contrast(1.5) brightness(1.1);
+    mix-blend-mode: screen;
+}
+
+.piece.white {
+    background-position: -1px 0px;
+}
+
+.piece.black {
+    background-position: -112px 0px;
+}
+
+.piece.white-king {
+    background-position: -57px 0px;
+}
+
+.piece.black-king {
+    background-position: -168px 0px;
+}
+
+.square.valid {
+    background-color: green;
+}
+
+.square.danger {
+    background-color: red;
+}
