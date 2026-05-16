@@ -72,6 +72,12 @@ document.addEventListener('click', (e) => {
         clearHighlights();
         selectedPiece = null;
     }
+
+    const winner = checkWinner(gameState);
+    if (winner) {
+        alert(`${winner.toUpperCase()} WINS!`);
+        // Optionally: disable further moves, show a message, etc.
+    }
 });
 
 renderBoard(gameState);
