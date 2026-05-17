@@ -8,6 +8,8 @@ import {
     getFunctions, httpsCallable
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
 import { renderBoard, clearHighlights, updateGameInfo, showGameCreated, showGameSession } from './ui.js';
+import { getValidMoves } from './engine.js';
+import { PIECE, isWhite } from './module.js';
 
 const _makeMove = httpsCallable(fns, "makeMove");
 const _createGame = httpsCallable(fns, "createGame");
@@ -26,10 +28,11 @@ let disconnectHandlers = [];
 let previousGameState = null;
 let gameMode = "classic";
 let isSpectator = false;
+let isLocalGame = false;
 let playerId = null;   // Firebase Auth UID
 let playerName = null;   // display name
 let playerColor = null;  // avatar color (hex)
-let playerRole = null;   // 'white' | 'black' | 'spectator'
+let playerRole = null;   // 'white' | 'black' | 'spectator' | 'local'
 
 /* =========================
    EXPOSE STATE TO OTHER MODULES
@@ -85,6 +88,22 @@ async function setupDisconnectHandler() {
     }
 }
 
+async function prepareOnlineSession() {
+    await cancelDisconnectHandler();
+    if (unsubscribe) {
+        unsubscribe();
+        unsubscribe = null;
+    }
+    previousGameState = null;
+    gameState = null;
+    gameId = null;
+    gameRef = null;
+    isLocalGame = false;
+    isSpectator = false;
+    window.__gameState = null;
+    window.__playerRole = null;
+}
+
 async function maybeClaimWin() {
     if (!gameId || !playerRole || playerRole === "spectator") return;
     try {
@@ -95,7 +114,7 @@ async function maybeClaimWin() {
 }
 
 async function handleOpponentLeave(oldState, newState) {
-    if (!oldState || !newState || !playerRole || playerRole === "spectator" || newState.winner) return;
+    if (!oldState || !newState || !playerRole || playerRole === "spectator" || newState.winner || oldState.winner) return;
     const opponentRole = playerRole === "white" ? "black" : "white";
     const wasOpponentJoined = oldState.players?.[opponentRole]?.joined;
     const isOpponentJoined = newState.players?.[opponentRole]?.joined;
@@ -115,14 +134,16 @@ export async function createGame() {
     try {
         const currentUser = auth.currentUser;
         if (!currentUser) throw new Error("Not authenticated.");
-        
+
+        await prepareOnlineSession();
         await currentUser.reload();
-        
+
         await currentUser.getIdToken(true);
-        
+
         loadCurrentPlayer();
-        
+
         playerId = currentUser.uid;
+        isLocalGame = false;
         gameMode = document.querySelector('input[name="gameMode"]:checked')?.value || "classic";
         isSpectator = false;
 
@@ -185,6 +206,7 @@ export async function joinGame() {
             throw new Error("Not authenticated. Please sign in first.");
         }
 
+        await prepareOnlineSession();
         // Refresh auth state and ensure token is valid
         await currentUser.reload();
         await currentUser.getIdToken(true);
@@ -194,6 +216,7 @@ export async function joinGame() {
 
         gameId = inputId;
         playerRole = "black";
+        isLocalGame = false;
         isSpectator = false;
         window.__playerRole = playerRole;
         gameRef = ref(db, `games/${gameId}`);
@@ -255,6 +278,8 @@ export async function spectateGame() {
     try {
         const currentUser = auth.currentUser;
         if (!currentUser) throw new Error("Not authenticated.");
+
+        await prepareOnlineSession();
         await currentUser.reload();
         await currentUser.getIdToken(true);
         loadCurrentPlayer();
@@ -281,12 +306,172 @@ export async function spectateGame() {
     }
 }
 
+export async function startLocalGame() {
+    try {
+        await cancelDisconnectHandler();
+        if (unsubscribe) {
+            unsubscribe();
+            unsubscribe = null;
+        }
+        const currentUser = auth.currentUser;
+        if (!currentUser) throw new Error("Not authenticated.");
+        loadCurrentPlayer();
+        playerId = currentUser.uid;
+        playerRole = "local";
+        isLocalGame = true;
+        isSpectator = false;
+        gameId = "LOCAL";
+        gameMode = document.querySelector('input[name="gameMode"]:checked')?.value || "classic";
+        gameRef = null;
+        previousGameState = null;
+        disconnectHandlers = [];
+
+        gameState = {
+            board: [
+                [0, 1, 0, 1, 0, 1, 0, 1],
+                [1, 0, 1, 0, 1, 0, 1, 0],
+                [0, 1, 0, 1, 0, 1, 0, 1],
+                [0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0],
+                [2, 0, 2, 0, 2, 0, 2, 0],
+                [0, 2, 0, 2, 0, 2, 0, 2],
+                [2, 0, 2, 0, 2, 0, 2, 0]
+            ],
+            players: {
+                white: {
+                    id: playerId,
+                    displayName: playerName,
+                    avatarColor: playerColor,
+                    joined: true
+                },
+                black: {
+                    id: null,
+                    displayName: "Player 2",
+                    avatarColor: "#9b59b6",
+                    joined: true
+                }
+            },
+            turn: "white",
+            winner: null,
+            chainPiece: null,
+            mode: gameMode,
+            spectators: {},
+            chat: {},
+            lastMove: null,
+            lastMoveTime: Date.now()
+        };
+
+        window.__playerRole = playerRole;
+        window.__gameState = gameState;
+        showGameSession(gameId, playerRole);
+        renderBoard(gameState);
+        updateGameInfo(gameState, playerRole, gameId);
+    } catch (err) {
+        console.error("Local game failed:", err.message);
+        alert("Failed to start local game: " + err.message);
+    }
+}
+
 /* =========================
    PUBLIC: ATTEMPT A MOVE
 ========================= */
+function getOpponentColor(color) {
+    return color === 'white' ? 'black' : 'white';
+}
+
+function findLocalMove(gameState, fromRow, fromCol, toRow, toCol) {
+    const moves = getValidMoves(gameState, fromRow, fromCol);
+    return moves.find((m) => m.row === toRow && m.col === toCol) || null;
+}
+
+function applyLocalMove(gameState, fromRow, fromCol, toRow, toCol, move) {
+    const board = gameState.board.map((row) => [...row]);
+    let piece = board[fromRow][fromCol];
+    board[fromRow][fromCol] = PIECE.EMPTY;
+    board[toRow][toCol] = piece;
+
+    if (move.isCapture && move.capturePos) {
+        board[move.capturePos.row][move.capturePos.col] = PIECE.EMPTY;
+    }
+
+    const promoted = (piece === PIECE.WHITE && toRow === 7) || (piece === PIECE.BLACK && toRow === 0);
+    if (promoted) {
+        board[toRow][toCol] = piece === PIECE.WHITE ? PIECE.WHITE_KING : PIECE.BLACK_KING;
+        piece = board[toRow][toCol];
+    }
+
+    const nextTurn = gameState.turn === 'white' ? 'black' : 'white';
+    let chainPiece = null;
+    let nextPlayer = nextTurn;
+
+    if (move.isCapture && !promoted) {
+        const followUpState = {
+            ...gameState,
+            board,
+            turn: gameState.turn,
+            chainPiece: null
+        };
+        const followUps = getValidMoves(followUpState, toRow, toCol);
+        if (followUps.some((m) => m.isCapture)) {
+            nextPlayer = gameState.turn;
+            chainPiece = [toRow, toCol];
+        }
+    }
+
+    const winner = determineWinner(board, nextPlayer);
+
+    return {
+        ...gameState,
+        board,
+        turn: nextPlayer,
+        chainPiece,
+        winner,
+        lastMove: { from: { row: fromRow, col: fromCol }, to: { row: toRow, col: toCol } },
+        lastMoveTime: Date.now()
+    };
+}
+
+function determineWinner(board, nextTurn) {
+    let whiteCount = 0;
+    let blackCount = 0;
+    for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+            const piece = board[r][c];
+            if (piece === PIECE.EMPTY) continue;
+            if (isWhite(piece)) whiteCount++; else blackCount++;
+        }
+    }
+    if (whiteCount === 0) return 'black';
+    if (blackCount === 0) return 'white';
+
+    const tempState = { board, turn: nextTurn, chainPiece: null };
+    for (let r = 0; r < 8; r++) {
+        for (let c = 0; c < 8; c++) {
+            if (getValidMoves(tempState, r, c).length > 0) {
+                return null;
+            }
+        }
+    }
+    return nextTurn === 'white' ? 'black' : 'white';
+}
+
 export async function onMoveAttempt(fromRow, fromCol, toRow, toCol) {
     try {
-        // Verify user is authenticated before attempting move
+        if (isLocalGame) {
+            if (!gameState || gameState.winner) {
+                throw new Error('Game is not active.');
+            }
+            const move = findLocalMove(gameState, fromRow, fromCol, toRow, toCol);
+            if (!move) {
+                throw new Error('Invalid move');
+            }
+            gameState = applyLocalMove(gameState, fromRow, fromCol, toRow, toCol, move);
+            window.__gameState = gameState;
+            renderBoard(gameState);
+            updateGameInfo(gameState, playerRole, gameId);
+            return;
+        }
+
         const currentUser = auth.currentUser;
         if (!currentUser) {
             throw new Error("Not authenticated. Please refresh and sign in again.");
@@ -294,8 +479,8 @@ export async function onMoveAttempt(fromRow, fromCol, toRow, toCol) {
 
         await _makeMove({ gameId, playerId, fromRow, fromCol, toRow, toCol });
     } catch (err) {
-        console.warn("Move rejected:", err.message);
-        alert("Invalid move: " + err.message);
+        console.warn("Move rejected:", err.message || err);
+        alert("Invalid move: " + (err.message || err));
     }
 }
 
@@ -304,6 +489,24 @@ export async function sendChatMessage() {
     const message = input?.value.trim();
     if (!message) return;
     try {
+        if (isLocalGame) {
+            if (!gameState) throw new Error("Game is not active.");
+            const key = `local-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+            const chat = { ...gameState.chat };
+            chat[key] = {
+                playerId: playerId || 'local',
+                displayName: playerName || 'Player',
+                avatarColor: playerColor || '#888',
+                message,
+                sentAt: Date.now()
+            };
+            gameState = { ...gameState, chat };
+            window.__gameState = gameState;
+            updateGameInfo(gameState, playerRole, gameId);
+            input.value = "";
+            return;
+        }
+
         const currentUser = auth.currentUser;
         if (!currentUser) throw new Error("Not authenticated.");
         loadCurrentPlayer();
@@ -370,12 +573,27 @@ export function closeProfile() {
 }
 
 export async function surrenderGame() {
-    if (playerRole !== "white" && playerRole !== "black") {
+    if (!isLocalGame && playerRole !== "white" && playerRole !== "black") {
         alert("Only players can surrender.");
         return;
     }
     if (!confirm("Are you sure you want to surrender?")) return;
     try {
+        if (isLocalGame) {
+            if (!gameState) throw new Error("Game is not active.");
+            const surrendering = gameState.turn;
+            const winner = surrendering === 'white' ? 'black' : 'white';
+            gameState = {
+                ...gameState,
+                winner,
+                lastMoveTime: Date.now(),
+                endedAt: Date.now()
+            };
+            window.__gameState = gameState;
+            renderBoard(gameState);
+            updateGameInfo(gameState, playerRole, gameId);
+            return;
+        }
         const currentUser = auth.currentUser;
         if (!currentUser) throw new Error("Not authenticated.");
         loadCurrentPlayer();
@@ -393,12 +611,12 @@ export async function surrenderGame() {
    PUBLIC: RESET GAME
 ========================= */
 export async function resetGame() {
-    if (!gameRef || playerRole !== "white") {
+    if (!isLocalGame && (!gameRef || playerRole !== "white")) {
         alert("Only the game creator can reset.");
         return;
     }
     try {
-        await set(gameRef, {
+        const resetState = {
             board: [
                 [0, 1, 0, 1, 0, 1, 0, 1],
                 [1, 0, 1, 0, 1, 0, 1, 0],
@@ -418,7 +636,19 @@ export async function resetGame() {
             chat: gameState?.chat || {},
             lastMove: null,
             lastMoveTime: Date.now()
-        });
+        };
+
+        if (isLocalGame) {
+            gameState = { ...resetState };
+            window.__gameState = gameState;
+            renderBoard(gameState);
+            updateGameInfo(gameState, playerRole, gameId);
+            previousGameState = null;
+            return;
+        }
+
+        await set(gameRef, resetState);
+        previousGameState = null;
     } catch (err) {
         console.error("Reset failed:", err.message);
         alert("Failed to reset game");
@@ -426,7 +656,7 @@ export async function resetGame() {
 }
 
 export async function returnToLobby() {
-    if (gameId && (playerRole === "white" || playerRole === "black") && gameState && !gameState.winner) {
+    if (!isLocalGame && gameId && (playerRole === "white" || playerRole === "black") && gameState && !gameState.winner) {
         const opponentRole = playerRole === "white" ? "black" : "white";
         const opponentJoined = gameState.players?.[opponentRole]?.joined;
         if (opponentJoined) {
@@ -446,6 +676,8 @@ export async function returnToLobby() {
     gameState = null;
     gameId = null;
     gameRef = null;
+    isLocalGame = false;
+    isSpectator = false;
     window.__gameState = null;
     window.__playerRole = null;
 

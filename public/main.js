@@ -3,7 +3,7 @@
 
 import './firebase.js';
 import { waitForAuthReady, signInAsGuest, signInWithGoogle } from './auth.js';
-import { createGame, joinGame, resetGame, onMoveAttempt } from './game.js';
+import { createGame, joinGame, resetGame, onMoveAttempt, startLocalGame } from './game.js';
 import './ui.js';
 
 
@@ -101,6 +101,7 @@ function setAuthLoading(loading) {
 // Wire game functions to global scope for HTML onclick handlers
 window.createGame = createGame;
 window.joinGame = joinGame;
+window.startLocalGame = startLocalGame;
 window.resetGame = resetGame;
 window.onMoveAttempt = onMoveAttempt;
 

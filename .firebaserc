@@ -1,5 +1,14 @@
 {
-  "projects": {
-    "default": "nfac-checkers"
-  }
+    "projects": {
+        "default": "nfac-checkers"
+    },
+    "targets": {
+        "nfac-checkers": {
+            "database": {
+                "defaultdb": [
+                    "nfac-checkers-default-rtdb"
+                ]
+            }
+        }
+    }
 }

@@ -66,13 +66,15 @@ export function renderBoard(gameState) {
 ========================= */
 async function handleSquareClick(row, col) {
     const gameState = window.__gameState;
-    const playerRole = window.__playerRole;
+    let playerRole = window.__playerRole;
     if (!gameState || gameState.winner) return;
     if (!gameState.players?.black?.joined) return;
-    if (gameState.turn !== playerRole) return;
+    const localMode = playerRole === 'local';
+    const activePlayer = localMode ? gameState.turn : playerRole;
+    if (gameState.turn !== activePlayer) return;
 
     const piece = gameState.board[row][col];
-    const isOwnPiece = isPieceOwned(piece, playerRole);
+    const isOwnPiece = isPieceOwned(piece, activePlayer);
 
     if (!selectedPiece) {
         if (!isOwnPiece) return;
@@ -173,19 +175,21 @@ export function updateGameInfo(gameState, playerRole, gameId) {
     const myName = window.__playerName || "You";
     if (myNameEl) myNameEl.innerHTML = avatarDot(myColor) + myName;
 
-    // My piece color or spectator role
+    // My piece color or spectator/local mode label
     roleEl.innerHTML = playerRole === "white"
         ? "⚪ <strong>White</strong>"
         : playerRole === "black"
             ? "⚫ <strong>Black</strong>"
-            : "👀 <strong>Spectator</strong>";
+            : playerRole === "local"
+                ? "🟧 <strong>Local play</strong>"
+                : "👀 <strong>Spectator</strong>";
 
     // Opponent info (players only)
     const opponentData = playerRole === "white"
         ? gameState.players?.black
         : playerRole === "black"
             ? gameState.players?.white
-            : null;
+            : gameState.players?.black;
 
     if (opponentData?.joined) {
         const oppColor = opponentData.avatarColor || "#888";
@@ -221,7 +225,7 @@ export function updateGameInfo(gameState, playerRole, gameId) {
         titleEl.textContent = `🎉 ${gameState.winner.toUpperCase()} WINS!`;
         turnEl.textContent = "";
         if (playerStatusEl) playerStatusEl.textContent = "Game over";
-    } else if (!gameState.players?.black?.joined) {
+    } else if (!gameState.players?.black?.joined && playerRole !== 'local') {
         titleEl.textContent = "⏳ Waiting for opponent...";
         turnEl.textContent = "";
         if (playerStatusEl) playerStatusEl.textContent = "Waiting for opponent…";
@@ -231,6 +235,10 @@ export function updateGameInfo(gameState, playerRole, gameId) {
             turnEl.innerHTML = `👀 Spectating ${gameState.turn === "white" ? "White" : "Black"} move`; 
             turnEl.className = "turn spectator";
             if (playerStatusEl) playerStatusEl.textContent = "Viewing as spectator";
+        } else if (playerRole === 'local') {
+            turnEl.innerHTML = `▶ ${gameState.turn === "white" ? "White" : "Black"} move`;
+            turnEl.className = `turn ${gameState.turn}`;
+            if (playerStatusEl) playerStatusEl.textContent = "Local two-player game";
         } else {
             const isMyTurn = gameState.turn === playerRole;
             turnEl.innerHTML =
@@ -252,7 +260,9 @@ export function showGameSession(gameId, role) {
         ? "⚪ <strong>White</strong>"
         : role === "black"
             ? "⚫ <strong>Black</strong>"
-            : "👀 <strong>Spectator</strong>";
+            : role === "local"
+                ? "🟧 <strong>Local play</strong>"
+                : "👀 <strong>Spectator</strong>";
     const myNameEl = document.getElementById("myName");
     if (myNameEl) {
         const myColor = window.__playerColor || "#888";

@@ -1,5 +1,6 @@
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
-const {setGlobalOptions, schedule} = require("firebase-functions/v2");
+const {setGlobalOptions} = require("firebase-functions/v2");
+const {onSchedule} = require("firebase-functions/v2/scheduler");
 
 setGlobalOptions({region: "asia-southeast1"});
 const admin = require("firebase-admin");
@@ -505,7 +506,7 @@ exports.claimWin = onCall(async (request) => {
     winner: player,
     surrenderedBy: opponent,
     lastMoveTime: Date.now(),
-    endedAt: Date.now()
+    endedAt: Date.now(),
   };
   await gameRef.update(update);
   await recordMatchResult({...game, gameId}, player);
@@ -515,7 +516,7 @@ exports.claimWin = onCall(async (request) => {
 /* =========================
    CLEANUP ENDED GAMES
 ======================== */
-exports.cleanupEndedGames = schedule("every 6 hours").onRun(async () => {
+exports.cleanupEndedGames = onSchedule("every 6 hours", async () => {
   const cutoff = Date.now() - 1000 * 60 * 60 * 24;
   const snapshot = await db.ref("games").get();
   if (!snapshot.exists()) {
