@@ -1,46 +1,4 @@
-function makeMove(gameState, fromRow, fromCol, toRow, toCol, capturePos) {
-    const newBoard = gameState.board.map(row => [...row]);
-    let piece = newBoard[fromRow][fromCol];
-    newBoard[toRow][toCol] = piece;
-    newBoard[fromRow][fromCol] = PIECE.EMPTY;
-
-    // Remove the captured piece if this is a capture move.
-    let wasCapture = false;
-    if (capturePos) {
-        wasCapture = true;
-        newBoard[capturePos.row][capturePos.col] = PIECE.EMPTY;
-    }
-
-    // Promotion — but NOT mid-chain
-    const promotedThisTurn =
-        (piece === PIECE.WHITE && toRow === 7) ||
-        (piece === PIECE.BLACK && toRow === 0);
-    if (promotedThisTurn) {
-        newBoard[toRow][toCol] = piece === PIECE.WHITE ? PIECE.WHITE_KING : PIECE.BLACK_KING;
-        piece = newBoard[toRow][toCol];
-    }
-
-    // Check if the piece that just captured can capture again.
-    // If so, keep the turn and lock play to this piece.
-    let nextTurn = gameState.turn === 'white' ? 'black' : 'white';
-    let chainPiece = null;
-
-    if (wasCapture && !promotedThisTurn) {
-        const midState = { board: newBoard, turn: gameState.turn, chainPiece: null };
-        const followUps = _getMovesForPiece(midState, toRow, toCol).filter(m => m.isCapture);
-        if (followUps.length > 0) {
-            nextTurn = gameState.turn;
-            chainPiece = [toRow, toCol];
-        }
-    }
-
-    return {
-        board: newBoard,
-        turn: nextTurn,
-        chainPiece,
-        history: [...gameState.history, gameState.board]
-    };
-}
+import { PIECE, isKing, isWhite, isOnBoard, isPieceOwned } from "./module.js";
 
 // Returns all squares along a diagonal direction from a starting position.
 function _scanDiagonal(board, fromRow, fromCol, stepRow, stepCol) {
@@ -150,41 +108,4 @@ function getValidMoves(gameState, row, col) {
     return _getMovesForPiece(gameState, row, col);
 }
 
-// Used by index.js to validate a clicked destination square.
-// Returns the full move object (including capturePos) so index.js can pass it to makeMove.
-function isValidMove(gameState, fromRow, fromCol, toRow, toCol) {
-    const moves = getValidMoves(gameState, fromRow, fromCol);
-    const match = moves.find(m => m.row === toRow && m.col === toCol);
-    if (!match) return { valid: false };
-    return { valid: true, isCapture: match.isCapture, capturePos: match.capturePos };
-}
-
-function checkWinner(gameState) {
-    // A player loses if they have no pieces left
-    let whiteCount = 0, blackCount = 0;
-    for (let r = 0; r < 8; r++) {
-        for (let c = 0; c < 8; c++) {
-            const p = gameState.board[r][c];
-            if (isWhite(p)) whiteCount++;
-            else if (!isWhite(p) && p !== PIECE.EMPTY) blackCount++;
-        }
-    }
-
-    if (whiteCount === 0) return 'black'; // black wins
-    if (blackCount === 0) return 'white'; // white wins
-
-    // A player loses if they have no legal moves
-    const currentPlayerMoves = [];
-    for (let r = 0; r < 8; r++) {
-        for (let c = 0; c < 8; c++) {
-            const moves = getValidMoves(gameState, r, c);
-            if (moves.length > 0) currentPlayerMoves.push(moves);
-        }
-    }
-
-    if (currentPlayerMoves.length === 0) {
-        return gameState.turn === 'white' ? 'black' : 'white'; // opponent wins
-    }
-
-    return null; // game continues
-}
+export { getValidMoves };

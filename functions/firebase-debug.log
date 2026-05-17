@@ -1,0 +1,22 @@
+[debug] [2026-05-17T13:13:24.660Z] ----------------------------------------------------------------------
+[debug] [2026-05-17T13:13:24.662Z] Command:       /usr/bin/node-22 /usr/local/bin/firebase deploy --only functions
+[debug] [2026-05-17T13:13:24.662Z] CLI Version:   15.18.0
+[debug] [2026-05-17T13:13:24.662Z] Platform:      linux
+[debug] [2026-05-17T13:13:24.662Z] Node Version:  v22.22.2
+[debug] [2026-05-17T13:13:24.663Z] Time:          Sun May 17 2026 18:13:24 GMT+0500 (Kazakhstan Time)
+[debug] [2026-05-17T13:13:24.663Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-05-17T13:13:25.420Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-05-17T13:13:25.421Z] > authorizing via signed-in user (nurasylserikov4@gmail.com)
+[debug] [2026-05-17T13:13:25.421Z] [iam] checking project nfac-checkers for permissions ["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]
+[debug] [2026-05-17T13:13:25.422Z] Checked if tokens are valid: true, expires at: 1779025817526
+[debug] [2026-05-17T13:13:25.422Z] Checked if tokens are valid: true, expires at: 1779025817526
+[debug] [2026-05-17T13:13:25.422Z] >>> [apiv2][query] POST https://cloudresourcemanager.googleapis.com/v1/projects/nfac-checkers:testIamPermissions [none]
+[debug] [2026-05-17T13:13:25.422Z] >>> [apiv2][(partial)header] POST https://cloudresourcemanager.googleapis.com/v1/projects/nfac-checkers:testIamPermissions  x-goog-user-project=nfac-checkers
+[debug] [2026-05-17T13:13:25.422Z] >>> [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/nfac-checkers:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[debug] [2026-05-17T13:13:26.597Z] <<< [apiv2][status] POST https://cloudresourcemanager.googleapis.com/v1/projects/nfac-checkers:testIamPermissions 200
+[debug] [2026-05-17T13:13:26.598Z] <<< [apiv2][body] POST https://cloudresourcemanager.googleapis.com/v1/projects/nfac-checkers:testIamPermissions {"permissions":["cloudfunctions.functions.create","cloudfunctions.functions.delete","cloudfunctions.functions.get","cloudfunctions.functions.list","cloudfunctions.functions.update","cloudfunctions.operations.get","firebase.projects.get"]}
+[debug] [2026-05-17T13:13:26.598Z] Checked if tokens are valid: true, expires at: 1779025817526
+[debug] [2026-05-17T13:13:26.598Z] Checked if tokens are valid: true, expires at: 1779025817526
+[debug] [2026-05-17T13:13:26.599Z] >>> [apiv2][query] POST https://iam.googleapis.com/v1/projects/nfac-checkers/serviceAccounts/nfac-checkers@appspot.gserviceaccount.com:testIamPermissions [none]
+[debug] [2026-05-17T13:13:26.599Z] >>> [apiv2][body] POST https://iam.googleapis.com/v1/projects/nfac-checkers/serviceAccounts/nfac-checkers@appspot.gserviceaccount.com:testIamPermissions {"permissions":["iam.serviceAccounts.actAs"]}

@@ -1,8 +1,10 @@
-const functions = require("firebase-functions");
+const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {setGlobalOptions, schedule} = require("firebase-functions/v2");
+
+setGlobalOptions({region: "asia-southeast1"});
 const admin = require("firebase-admin");
 admin.initializeApp();
 const db = admin.database();
-const IS_EMULATOR = !!process.env.FIREBASE_AUTH_EMULATOR_HOST;
 
 /* =========================
    PIECE CONSTANTS
@@ -154,8 +156,16 @@ function applyMove(game, fromRow, fromCol, toRow, toCol, move) {
   }
   const winner = checkWinner(board, nextTurn);
   return {
-    board, turn: nextTurn, chainPiece, winner: winner || null,
-    players: game.players, lastMoveTime: Date.now(),
+    board,
+    turn: nextTurn,
+    chainPiece,
+    winner: winner || null,
+    players: game.players,
+    lastMove: {
+      from: {row: fromRow, col: fromCol},
+      to: {row: toRow, col: toCol},
+    },
+    lastMoveTime: Date.now(),
   };
 }
 
@@ -185,85 +195,119 @@ function checkWinner(board, nextTurn) {
   return null;
 }
 
+async function updatePlayerHistory(playerId, opponent, result, gameId, mode) {
+  if (!playerId) return;
+  const playerRef = db.ref(`players/${playerId}`);
+  const snapshot = await playerRef.get();
+  const current = snapshot.exists() ? snapshot.val() : {};
+  const stats = current.stats || {gamesPlayed: 0, wins: 0, losses: 0};
+  stats.gamesPlayed += 1;
+  if (result === "win") stats.wins += 1;
+  if (result === "loss") stats.losses += 1;
+  const history = current.history || {};
+  history[gameId] = {
+    opponentId: opponent.id || null,
+    opponentName: opponent.name || "Unknown",
+    result,
+    mode: mode || "classic",
+    endedAt: Date.now(),
+  };
+  await playerRef.update({stats, history});
+}
+
+async function recordMatchResult(game, winner) {
+  if (!winner || !game.players) return;
+  const loser = winner === "white" ? "black" : "white";
+  const winnerPlayer = game.players[winner];
+  const loserPlayer = game.players[loser];
+  const mode = game.mode || "classic";
+  await Promise.all([
+    updatePlayerHistory(winnerPlayer.id, {id: loserPlayer.id, name: loserPlayer.displayName}, "win", game.gameId || "unknown", mode),
+    updatePlayerHistory(loserPlayer.id, {id: winnerPlayer.id, name: winnerPlayer.displayName}, "loss", game.gameId || "unknown", mode),
+  ].filter(Boolean));
+}
+
 /* =========================
    CREATE GAME (Cloud Function)
-   Now accepts: playerId, displayName, avatarColor
+   Now accepts: playerId, displayName, avatarColor, mode
 ========================= */
-exports.createGame = functions.https.onCall(async (data, context) => {
+exports.createGame = onCall(async (request) => {
+  const data = request.data;
+  const auth = request.auth;
+
+  const {playerId, displayName, avatarColor} = data;
+  // Basic validation of incoming data
+  if (playerId !== undefined && typeof playerId !== "string") {
+    throw new HttpsError("invalid-argument", "playerId must be a string");
+  }
+
   // Verify user is authenticated (allow emulator fallback)
-  if (!context.auth && !IS_EMULATOR) {
-    throw new functions.https.HttpsError(
+  if (!auth) {
+    throw new HttpsError(
         "unauthenticated",
         "User must be authenticated",
     );
   }
 
-  // Debug: log auth context for emulator troubleshooting
-  console.log("createGame auth:", context.auth);
-
-  const {playerId, displayName, avatarColor} = data;
-  // Basic validation of incoming data
-  if (playerId !== undefined && typeof playerId !== 'string') {
-    throw new functions.https.HttpsError('invalid-argument', 'playerId must be a string');
-  }
-
   // Verify playerId matches authenticated user (skip check in emulator if unauthenticated)
-  if (context.auth && playerId !== context.auth.uid) {
-    throw new functions.https.HttpsError(
+  if (auth && playerId !== auth.uid) {
+    throw new HttpsError(
         "permission-denied",
         "PlayerId does not match authenticated user",
     );
   }
 
   try {
-        // Generate a unique gameId, retrying on collision
-        let gameId = Math.random().toString(36).substring(2, 10).toUpperCase();
-        let gameRef = db.ref(`games/${gameId}`);
-        let snapshot = await gameRef.get();
-        let attempts = 0;
-        while (snapshot.exists() && attempts < 5) {
-            gameId = Math.random().toString(36).substring(2, 10).toUpperCase();
-            gameRef = db.ref(`games/${gameId}`);
-            snapshot = await gameRef.get();
-            attempts++;
-        }
-        if (snapshot.exists()) {
-            throw new functions.https.HttpsError("internal", "Could not generate unique game ID");
-        }
+    // Generate a unique gameId, retrying on collision
+    let gameId = Math.random().toString(36).substring(2, 10).toUpperCase();
+    let gameRef = db.ref(`games/${gameId}`);
+    let snapshot = await gameRef.get();
+    let attempts = 0;
+    while (snapshot.exists() && attempts < 5) {
+      gameId = Math.random().toString(36).substring(2, 10).toUpperCase();
+      gameRef = db.ref(`games/${gameId}`);
+      snapshot = await gameRef.get();
+      attempts++;
+    }
+    if (snapshot.exists()) {
+      throw new HttpsError("internal", "Could not generate unique game ID");
+    }
 
-  const initialState = {
-    board: [
-      [0, 1, 0, 1, 0, 1, 0, 1],
-      [1, 0, 1, 0, 1, 0, 1, 0],
-      [0, 1, 0, 1, 0, 1, 0, 1],
-      [0, 0, 0, 0, 0, 0, 0, 0],
-      [0, 0, 0, 0, 0, 0, 0, 0],
-      [2, 0, 2, 0, 2, 0, 2, 0],
-      [0, 2, 0, 2, 0, 2, 0, 2],
-      [2, 0, 2, 0, 2, 0, 2, 0],
-    ],
-    turn: "white",
-    chainPiece: null,
-    winner: null,
-    players: {
-      white: {
-        id: playerId ?? null,
-        displayName: displayName || "Player",
-        avatarColor: avatarColor || "#3498DB",
-        joined: true,
+    const initialState = {
+      board: [
+        [0, 1, 0, 1, 0, 1, 0, 1],
+        [1, 0, 1, 0, 1, 0, 1, 0],
+        [0, 1, 0, 1, 0, 1, 0, 1],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0, 0, 0, 0],
+        [2, 0, 2, 0, 2, 0, 2, 0],
+        [0, 2, 0, 2, 0, 2, 0, 2],
+        [2, 0, 2, 0, 2, 0, 2, 0],
+      ],
+      turn: "white",
+      chainPiece: null,
+      winner: null,
+      mode: data.mode === "atari" ? "atari" : "classic",
+      players: {
+        white: {
+          id: playerId ?? "unknown",
+          displayName: displayName || "Player",
+          avatarColor: avatarColor || "#3498DB",
+          joined: true,
+        },
+        black: {
+          id: null,
+          displayName: null,
+          avatarColor: null,
+          joined: false,
+        },
       },
-      black: {
-        id: null,
-        displayName: null,
-        avatarColor: null,
-        joined: false,
-      },
-    },
-    createdAt: Date.now(),
-    lastMoveTime: Date.now(),
-  };
-
-    console.log("createGame initialState:", initialState, "gameId:", gameId);
+      spectators: {},
+      chat: {},
+      createdAt: Date.now(),
+      lastMove: null,
+      lastMoveTime: Date.now(),
+    };
 
     // Attempt to write initial game state. Log and rethrow detailed error in dev.
     try {
@@ -271,38 +315,38 @@ exports.createGame = functions.https.onCall(async (data, context) => {
       console.log("createGame succeeded", {gameId});
       return {gameId};
     } catch (writeErr) {
-      console.error("createGame write error:", writeErr, "context.auth:", context && context.auth, "data:", data);
+      console.error("createGame write error:", writeErr, "auth:", auth, "data:", data);
       // Surface more useful message to callers while keeping HttpsError semantics
-      const message = writeErr && writeErr.message ? writeErr.message : 'Failed to write game to database';
-      throw new functions.https.HttpsError("internal", message);
+      const message = writeErr && writeErr.message ? writeErr.message : "Failed to write game to database";
+      throw new HttpsError("internal", message);
     }
   } catch (err) {
-    console.error("createGame error:", err && err.stack ? err.stack : err, "context.auth:", context && context.auth, "data:", data);
-    if (err instanceof functions.https.HttpsError) throw err;
-    throw new functions.https.HttpsError("internal", err && err.message ? err.message : "Internal server error");
+    console.error("createGame error:", err && err.stack ? err.stack : err, "auth:", auth, "data:", data);
+    if (err instanceof HttpsError) throw err;
+    throw new HttpsError("internal", err && err.message ? err.message : "Internal server error");
   }
 });
 
 /* =========================
    MAKE MOVE (Cloud Function)
 ========================= */
-exports.makeMove = functions.https.onCall(async (data, context) => {
+exports.makeMove = onCall(async (request) => {
+  const data = request.data;
+  const auth = request.auth;
+
   // Verify user is authenticated (allow emulator fallback)
-  if (!context.auth && !IS_EMULATOR) {
-    throw new functions.https.HttpsError(
+  if (!auth) {
+    throw new HttpsError(
         "unauthenticated",
         "User must be authenticated",
     );
   }
 
-  // Debug: log auth context for emulator troubleshooting
-  console.log("makeMove auth:", context.auth);
-
   const {gameId, fromRow, fromCol, toRow, toCol, playerId} = data;
 
   // Verify playerId matches authenticated user (skip check in emulator if unauthenticated)
-  if (context.auth && playerId !== context.auth.uid) {
-    throw new functions.https.HttpsError(
+  if (auth && playerId !== auth.uid) {
+    throw new HttpsError(
         "permission-denied",
         "PlayerId does not match authenticated user",
     );
@@ -310,24 +354,24 @@ exports.makeMove = functions.https.onCall(async (data, context) => {
 
   const gameRef = db.ref(`games/${gameId}`);
   const snapshot = await gameRef.get();
-  if (!snapshot.exists()) throw new functions.https.HttpsError("not-found", "Game not found");
+  if (!snapshot.exists()) throw new HttpsError("not-found", "Game not found");
 
   const game = snapshot.val();
   if (game.winner) {
-    throw new functions.https.HttpsError("failed-precondition", "Game is already over");
+    throw new HttpsError("failed-precondition", "Game is already over");
   }
   if (!game.players?.white?.joined || !game.players?.black?.joined) {
-    throw new functions.https.HttpsError("failed-precondition", "Waiting for opponent");
+    throw new HttpsError("failed-precondition", "Waiting for opponent");
   }
 
   let player = null;
   if (game.players?.white?.id === playerId) player = "white";
   if (game.players?.black?.id === playerId) player = "black";
   if (!player) {
-    throw new functions.https.HttpsError("permission-denied", "Not a player in this game");
+    throw new HttpsError("permission-denied", "Not a player in this game");
   }
   if (game.turn !== player) {
-    throw new functions.https.HttpsError("failed-precondition", "Not your turn");
+    throw new HttpsError("failed-precondition", "Not your turn");
   }
 
   const chainPiece = Array.isArray(game.chainPiece) ?
@@ -335,9 +379,160 @@ exports.makeMove = functions.https.onCall(async (data, context) => {
         game.chainPiece ? [game.chainPiece[0], game.chainPiece[1]] : null;
 
   const move = findMove(game.board, fromRow, fromCol, toRow, toCol, player, chainPiece);
-  if (!move) throw new functions.https.HttpsError("invalid-argument", "Invalid move");
+  if (!move) throw new HttpsError("invalid-argument", "Invalid move");
 
   const newGame = applyMove({...game, chainPiece}, fromRow, fromCol, toRow, toCol, move);
+  if (newGame.winner) {
+    newGame.endedAt = Date.now();
+  }
   await gameRef.update(newGame);
+  if (newGame.winner) {
+    await recordMatchResult({...newGame, gameId}, newGame.winner);
+  }
   return {success: true, winner: newGame.winner};
+});
+
+/* =========================
+   JOIN AS SPECTATOR
+========================= */
+exports.joinSpectator = onCall(async (request) => {
+  const data = request.data;
+  const auth = request.auth;
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "User must be authenticated");
+  }
+  const {gameId, playerId, displayName, avatarColor} = data;
+  if (playerId !== auth.uid) {
+    throw new HttpsError("permission-denied", "PlayerId does not match authenticated user");
+  }
+  const gameRef = db.ref(`games/${gameId}`);
+  const snapshot = await gameRef.get();
+  if (!snapshot.exists()) throw new HttpsError("not-found", "Game not found");
+  const game = snapshot.val();
+  if (game.players?.white?.id === playerId || game.players?.black?.id === playerId) {
+    throw new HttpsError("failed-precondition", "Players do not need spectator mode");
+  }
+  const spectatorRef = gameRef.child(`spectators/${playerId}`);
+  await spectatorRef.set({id: playerId, displayName: displayName || "Spectator", avatarColor: avatarColor || "#888", joinedAt: Date.now()});
+  return {success: true};
+});
+
+/* =========================
+   SEND CHAT MESSAGE
+========================= */
+exports.sendChatMessage = onCall(async (request) => {
+  const data = request.data;
+  const auth = request.auth;
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "User must be authenticated");
+  }
+  const {gameId, playerId, message, displayName, avatarColor} = data;
+  if (playerId !== auth.uid) {
+    throw new HttpsError("permission-denied", "PlayerId does not match authenticated user");
+  }
+  if (!message || typeof message !== "string" || message.trim().length === 0) {
+    throw new HttpsError("invalid-argument", "Message cannot be empty");
+  }
+  const chatRef = db.ref(`games/${gameId}/chat`);
+  await chatRef.push({playerId, displayName: displayName || "Player", avatarColor: avatarColor || "#888", message: message.trim(), sentAt: Date.now()});
+  return {success: true};
+});
+
+/* =========================
+   SURRENDER GAME
+========================= */
+exports.surrenderGame = onCall(async (request) => {
+  const data = request.data;
+  const auth = request.auth;
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "User must be authenticated");
+  }
+  const {gameId, playerId} = data;
+  if (playerId !== auth.uid) {
+    throw new HttpsError("permission-denied", "PlayerId does not match authenticated user");
+  }
+  const gameRef = db.ref(`games/${gameId}`);
+  const snapshot = await gameRef.get();
+  if (!snapshot.exists()) throw new HttpsError("not-found", "Game not found");
+  const game = snapshot.val();
+  if (game.winner) {
+    throw new HttpsError("failed-precondition", "Game is already over");
+  }
+  let player = null;
+  if (game.players?.white?.id === playerId) player = "white";
+  if (game.players?.black?.id === playerId) player = "black";
+  if (!player) {
+    throw new HttpsError("permission-denied", "Only players can surrender");
+  }
+  const winner = player === "white" ? "black" : "white";
+  const update = {winner, surrenderedBy: player, lastMoveTime: Date.now(), endedAt: Date.now()};
+  await gameRef.update(update);
+  await recordMatchResult({...game, gameId}, winner);
+  return {success: true, winner};
+});
+
+/* =========================
+   CLAIM WIN AFTER OPPONENT LEAVES
+========================= */
+exports.claimWin = onCall(async (request) => {
+  const data = request.data;
+  const auth = request.auth;
+  if (!auth) {
+    throw new HttpsError("unauthenticated", "User must be authenticated");
+  }
+  const {gameId, playerId} = data;
+  if (playerId !== auth.uid) {
+    throw new HttpsError("permission-denied", "PlayerId does not match authenticated user");
+  }
+  const gameRef = db.ref(`games/${gameId}`);
+  const snapshot = await gameRef.get();
+  if (!snapshot.exists()) throw new HttpsError("not-found", "Game not found");
+  const game = snapshot.val();
+  if (game.winner) {
+    throw new HttpsError("failed-precondition", "Game is already over");
+  }
+  let player = null;
+  if (game.players?.white?.id === playerId) player = "white";
+  if (game.players?.black?.id === playerId) player = "black";
+  if (!player) {
+    throw new HttpsError("permission-denied", "Not a player in this game");
+  }
+  const opponent = player === "white" ? "black" : "white";
+  if (game.players?.[opponent]?.joined !== false) {
+    throw new HttpsError("failed-precondition", "Opponent has not left the game");
+  }
+  const update = {
+    winner: player,
+    surrenderedBy: opponent,
+    lastMoveTime: Date.now(),
+    endedAt: Date.now()
+  };
+  await gameRef.update(update);
+  await recordMatchResult({...game, gameId}, player);
+  return {success: true, winner: player};
+});
+
+/* =========================
+   CLEANUP ENDED GAMES
+======================== */
+exports.cleanupEndedGames = schedule("every 6 hours").onRun(async () => {
+  const cutoff = Date.now() - 1000 * 60 * 60 * 24;
+  const snapshot = await db.ref("games").get();
+  if (!snapshot.exists()) {
+    return {deleted: 0};
+  }
+  const removals = [];
+  snapshot.forEach((child) => {
+    const value = child.val();
+    if (!value) return;
+    const endedAt = value.endedAt || value.lastMoveTime || 0;
+    const createdAt = value.createdAt || 0;
+    if (value.winner && endedAt > 0 && endedAt <= cutoff) {
+      removals.push(db.ref(`games/${child.key}`).remove());
+    } else if (value.winner && !endedAt && createdAt > 0 && createdAt <= cutoff) {
+      removals.push(db.ref(`games/${child.key}`).remove());
+    }
+  });
+  await Promise.all(removals);
+  return {deleted: removals.length};
 });

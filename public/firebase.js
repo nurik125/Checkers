@@ -1,12 +1,12 @@
 // firebase.js — Firebase app init + emulator wiring
 import { initializeApp }
-    from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getDatabase, connectDatabaseEmulator }
-    from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
-import { getFunctions, connectFunctionsEmulator }
-    from "https://www.gstatic.com/firebasejs/9.22.0/firebase-functions.js";
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 import { getAuth, connectAuthEmulator }
-    from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFunctions, connectFunctionsEmulator } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js";
+
 
 const firebaseConfig = {
     apiKey: "AIzaSyCqnKZAMZcepEEuHG5S0i8KRiSpoTC6LJg",
@@ -21,16 +21,18 @@ const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig);
 export const db = getDatabase(app);
-export const fns = getFunctions(app, "us-central1");
 export const auth = getAuth(app);
+export const fns = getFunctions(app, "asia-southeast1");
 
-const isLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+window.__auth = auth;
+
+const isLocal = location.hostname === "localhost" || location.hostname === "26.124.197.209";
 
 if (isLocal) {
     console.log("🔧 Development mode — connecting to emulators");
-    connectDatabaseEmulator(db, "127.0.0.1", 9000);
-    connectFunctionsEmulator(fns, "127.0.0.1", 5001);
-    connectAuthEmulator(auth, "http://127.0.0.1:9099");
+    connectDatabaseEmulator(db, "26.124.197.209", 9000);
+    connectAuthEmulator(auth, "http://26.124.197.209:9099");
+    connectFunctionsEmulator(fns, "26.124.197.209", 5001);
     console.log("✅ Emulators: DB:9000  Functions:5001  Auth:9099");
 } else {
     console.log("📡 Production mode — live Firebase");

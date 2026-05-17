@@ -1,8 +1,8 @@
 // auth.js — Authentication & player profile management
 import { signInAnonymously, signInWithPopup, signOut, GoogleAuthProvider, onAuthStateChanged }
-    from "https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js";
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { ref, set, get }
-    from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+    from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
 import { db as _db, auth } from './firebase.js';
 
 /* =========================
@@ -26,6 +26,7 @@ function randomColor() {
    SAVE PLAYER TO DB
 ========================= */
 async function savePlayer(uid, displayName, avatarColor) {
+    if (!uid) throw new Error("Cannot save player: uid is null");
     const playerRef = ref(db, `players/${uid}`);
     const snap = await get(playerRef);
     if (snap.exists()) return snap.val();
