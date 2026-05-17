@@ -1,0 +1,13 @@
+WARNING: A restricted method in java.lang.System has been called
+WARNING: java.lang.System::load has been called by io.netty.util.internal.NativeLibraryUtil in an unnamed module (file:/home/Nurasik12/.cache/firebase/emulators/firebase-database-emulator-v4.11.2.jar)
+WARNING: Use --enable-native-access=ALL-UNNAMED to avoid a warning for callers in this module
+WARNING: Restricted methods will be blocked in a future release unless native access is enabled
+
+WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
+WARNING: sun.misc.Unsafe::objectFieldOffset has been called by akka.util.Unsafe (file:/home/Nurasik12/.cache/firebase/emulators/firebase-database-emulator-v4.11.2.jar)
+WARNING: Please consider reporting this to the maintainers of class akka.util.Unsafe
+WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
+15:36:17.235 [NamespaceSystem-akka.actor.default-dispatcher-5] INFO akka.event.slf4j.Slf4jLogger - Slf4jLogger started
+15:36:17.359 [main] INFO com.firebase.server.forge.App$ - Listening at 127.0.0.1:9000
+15:36:22.290 [Thread-0] INFO com.firebase.server.forge.App$ - Attempting graceful shutdown.
+15:36:22.294 [Thread-0] INFO com.firebase.server.forge.App$ - Graceful shutdown complete.

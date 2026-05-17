@@ -202,6 +202,10 @@ exports.createGame = functions.https.onCall(async (data, context) => {
   console.log("createGame auth:", context.auth);
 
   const {playerId, displayName, avatarColor} = data;
+  // Basic validation of incoming data
+  if (playerId !== undefined && typeof playerId !== 'string') {
+    throw new functions.https.HttpsError('invalid-argument', 'playerId must be a string');
+  }
 
   // Verify playerId matches authenticated user (skip check in emulator if unauthenticated)
   if (context.auth && playerId !== context.auth.uid) {
@@ -211,7 +215,7 @@ exports.createGame = functions.https.onCall(async (data, context) => {
     );
   }
 
-    try {
+  try {
         // Generate a unique gameId, retrying on collision
         let gameId = Math.random().toString(36).substring(2, 10).toUpperCase();
         let gameRef = db.ref(`games/${gameId}`);
@@ -259,13 +263,24 @@ exports.createGame = functions.https.onCall(async (data, context) => {
     lastMoveTime: Date.now(),
   };
 
-  console.log("createGame initialState:", initialState, "gameId:", gameId);
-  await gameRef.set(initialState);
-  return {gameId};
-    } catch (err) {
-        console.error("createGame error:", err, "context.auth:", context && context.auth, "data:", data);
-        throw new functions.https.HttpsError("internal", "Internal server error");
+    console.log("createGame initialState:", initialState, "gameId:", gameId);
+
+    // Attempt to write initial game state. Log and rethrow detailed error in dev.
+    try {
+      await gameRef.set(initialState);
+      console.log("createGame succeeded", {gameId});
+      return {gameId};
+    } catch (writeErr) {
+      console.error("createGame write error:", writeErr, "context.auth:", context && context.auth, "data:", data);
+      // Surface more useful message to callers while keeping HttpsError semantics
+      const message = writeErr && writeErr.message ? writeErr.message : 'Failed to write game to database';
+      throw new functions.https.HttpsError("internal", message);
     }
+  } catch (err) {
+    console.error("createGame error:", err && err.stack ? err.stack : err, "context.auth:", context && context.auth, "data:", data);
+    if (err instanceof functions.https.HttpsError) throw err;
+    throw new functions.https.HttpsError("internal", err && err.message ? err.message : "Internal server error");
+  }
 });
 
 /* =========================

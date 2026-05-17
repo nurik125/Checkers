@@ -7,12 +7,18 @@ WARNING: A terminally deprecated method in sun.misc.Unsafe has been called
 WARNING: sun.misc.Unsafe::objectFieldOffset has been called by akka.util.Unsafe (file:/home/Nurasik12/.cache/firebase/emulators/firebase-database-emulator-v4.11.2.jar)
 WARNING: Please consider reporting this to the maintainers of class akka.util.Unsafe
 WARNING: sun.misc.Unsafe::objectFieldOffset will be removed in a future release
-14:24:53.956 [NamespaceSystem-akka.actor.default-dispatcher-5] INFO akka.event.slf4j.Slf4jLogger - Slf4jLogger started
-14:24:54.079 [main] INFO com.firebase.server.forge.App$ - Listening at 127.0.0.1:9000
-14:24:55.089 [NamespaceSystem-akka.actor.default-dispatcher-5] INFO com.firebase.core.namespace.NamespaceActor - nfac-checkers-default-rtdb successfully activated FBKV (SurveyIdle(0)) wait: 128ms, init: 0ms
-14:24:55.432 [FirebaseWorkerPool-1-2] WARN com.firebase.core.persistence.backend.dummy.EmulatorMetadataPersistence - Multiple projectIds are not recommended in single project mode. Requested 
+15:44:56.080 [NamespaceSystem-akka.actor.default-dispatcher-4] INFO akka.event.slf4j.Slf4jLogger - Slf4jLogger started
+15:44:56.225 [main] INFO com.firebase.server.forge.App$ - Listening at 127.0.0.1:9000
+15:44:57.471 [NamespaceSystem-akka.actor.default-dispatcher-4] INFO com.firebase.core.namespace.NamespaceActor - nfac-checkers-default-rtdb successfully activated FBKV (SurveyIdle(0)) wait: 130ms, init: 0ms
+15:44:58.389 [FirebaseWorkerPool-1-2] WARN com.firebase.core.persistence.backend.dummy.EmulatorMetadataPersistence - Multiple projectIds are not recommended in single project mode. Requested 
 namespace fake-server, but the emulator is configured for nfac-checkers-default-rtdb. To 
 opt-out of single project mode add/set the singleProjectMode: false property in 
 the firebase.json emulators config. 
-14:24:55.438 [NamespaceSystem-akka.actor.default-dispatcher-10] INFO com.firebase.core.namespace.NamespaceActor - fake-server successfully activated FBKV (SurveyIdle(0)) wait: 2ms, init: 0ms
-14:25:08.159 [NamespaceSystem-blocking-namespace-operation-dispatcher-13] INFO com.firebase.core.namespace.StateManager - Namespace nfac-checkers-default-rtdb status Active to Active
+15:44:58.397 [NamespaceSystem-akka.actor.default-dispatcher-9] INFO com.firebase.core.namespace.NamespaceActor - fake-server successfully activated FBKV (SurveyIdle(0)) wait: 4ms, init: 0ms
+15:45:09.628 [NamespaceSystem-blocking-namespace-operation-dispatcher-10] INFO com.firebase.core.namespace.StateManager - Namespace nfac-checkers-default-rtdb status Active to Active
+15:47:09.694 [Thread-0] INFO com.firebase.server.forge.App$ - Attempting graceful shutdown.
+15:47:09.712 [NamespaceSystem-akka.actor.default-dispatcher-16] INFO com.firebase.core.namespace.Terminator$Terminator - 2 actors left to terminate: fake-server, nfac-checkers-default-rtdb
+15:47:09.721 [NamespaceSystem-akka.actor.default-dispatcher-18] INFO com.firebase.core.namespace.NamespaceActor - stopped namespace actor for fake-server
+15:47:09.723 [NamespaceSystem-akka.actor.default-dispatcher-17] INFO com.firebase.core.namespace.NamespaceActor - stopped namespace actor for nfac-checkers-default-rtdb
+15:47:09.729 [NamespaceSystem-akka.actor.default-dispatcher-19] INFO com.firebase.core.namespace.DeadLetterResponder - Message ClientManagementEnvelope(CloseClient,Websockets) meant for NamespaceActor akka://NamespaceSystem/user/nfac-checkers-default-rtdb from akka://NamespaceSystem/user/nfac-checkers-default-rtdb/$e went to deadletter actor
+15:47:09.730 [Thread-0] INFO com.firebase.server.forge.App$ - Graceful shutdown complete.

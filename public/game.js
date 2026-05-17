@@ -168,18 +168,36 @@ export async function joinGame() {
             return;
         }
 
-        await update(gameRef, {
-            "players/black": {
-                id: playerId,
-                displayName: playerName,
-                avatarColor: playerColor,
-                joined: true
-            }
-        });
+        console.log("joinGame: updating black player", playerId);
+        const updates = {
+            "players/black/id": playerId,
+            "players/black/displayName": playerName,
+            "players/black/avatarColor": playerColor,
+            "players/black/joined": true,
+        };
 
-        console.log("joinGame updated black player", playerId);
+        // Add a 10s timeout to surface hangs instead of waiting indefinitely
+        await Promise.race([
+            update(gameRef, updates),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('Database update timeout')), 10000)),
+        ]);
+
+        console.log("joinGame: updated black player", playerId);
+
+        // Force an immediate UI refresh from the latest DB state to avoid
+        // showing a lingering "Joining…" state if the realtime listener
+        // is slightly delayed.
+        try {
+            const latest = await get(gameRef);
+            if (latest.exists()) {
+                updateGameInfo(latest.val(), playerRole, gameId);
+            }
+        } catch (uiErr) {
+            console.warn("joinGame: failed to fetch latest game for UI refresh", uiErr && uiErr.message);
+        }
+
         showGameSession(gameId, playerRole);
-        // UI will refresh from onValue listener after the update.
+        // UI will also refresh from onValue listener after the update.
     } catch (err) {
         console.error("Join game failed:", err.message);
         alert("Failed to join game: " + err.message);
