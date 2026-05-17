@@ -1,0 +1,28 @@
+{
+    "rules": {
+        "players": {
+            "$uid": {
+                ".read": "auth.uid === $uid",
+                ".write": "auth.uid === $uid"
+            }
+        },
+        "games": {
+            "$gameId": {
+                ".read": "auth.uid !== null && (
+                    root.child('games').child($gameId).child('players').child('white').child('id').val() === auth.uid ||
+                    root.child('games').child($gameId).child('players').child('black').child('id').val() === auth.uid ||
+                    !root.child('games').child($gameId).child('players').child('black').exists() ||
+                    root.child('games').child($gameId).child('players').child('black').child('id').val() === null
+                )",
+                ".write": "auth.uid !== null && (
+                    root.child('games').child($gameId).child('players').child('white').child('id').val() === auth.uid ||
+                    root.child('games').child($gameId).child('players').child('black').child('id').val() === auth.uid ||
+                    (
+                        (!root.child('games').child($gameId).child('players').child('black').exists() || root.child('games').child($gameId).child('players').child('black').child('id').val() === null) &&
+                        newData.child('players').child('black').child('id').val() === auth.uid
+                    )
+                )"
+            }
+        }
+    }
+}

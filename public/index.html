@@ -4,18 +4,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkers — Multiplayer</title>
     <link rel="stylesheet" href="style.css">
-    <title>Checkers</title>
+    <link rel="stylesheet" href="auth_styles.css">
 </head>
 
 <body>
-    <div id="board">
 
+    <!-- ========================
+     AUTH MODAL
+     Shown before the lobby until player identifies themselves
+========================= -->
+    <div id="authModal" class="modal-overlay hidden">
+        <div class="modal-box">
+            <h2>♟ Checkers</h2>
+            <p class="modal-sub">Choose how you want to play</p>
+
+            <!-- Google login -->
+            <button id="googleBtn" class="btn-google" onclick="handleGoogleLogin()">
+                <svg width="18" height="18" viewBox="0 0 48 48" style="vertical-align:middle;margin-right:8px">
+                    <path fill="#EA4335"
+                        d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+                    <path fill="#4285F4"
+                        d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+                    <path fill="#FBBC05"
+                        d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+                    <path fill="#34A853"
+                        d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+                </svg>
+                Continue with Google
+            </button>
+
+            <div class="divider"><span>or</span></div>
+
+            <!-- Nickname login -->
+            <div class="nickname-group">
+                <input id="nicknameInput" type="text" placeholder="Choose a nickname…" maxlength="20"
+                    autocomplete="off">
+                <button id="guestBtn" class="btn-guest" onclick="handleGuestLogin()">
+                    Play as Guest
+                </button>
+            </div>
+
+            <p id="authError" class="auth-error"></p>
+            <p id="authLoading" class="auth-loading hidden">Signing in…</p>
+        </div>
     </div>
-    <script src="module.js"></script>
-    <script src="engine.js"></script>
-    <script src="ui.js"></script>
-    <script src="index.js"></script>
+
+    <!-- ========================
+     LOBBY + GAME  (hidden until auth)
+========================= -->
+    <div id="lobbyWrapper" class="hidden">
+        <h1>🎮 Checkers — Multiplayer</h1>
+
+        <!-- Signed-in player badge -->
+        <div id="playerBadge" class="player-badge"></div>
+
+        <div class="container">
+            <!-- Lobby -->
+            <div class="lobby">
+                <h2>Game Lobby</h2>
+                <div class="status" id="connectionStatus">Connecting…</div>
+
+                <div id="joinSection">
+                    <h3>Join Game</h3>
+                    <input type="text" id="gameIdInput" placeholder="Enter Game ID">
+                    <button onclick="joinGame()">Join Game</button>
+                </div>
+
+                <div style="text-align:center;margin:10px 0"><strong>OR</strong></div>
+
+                <button onclick="createGame()" style="background:#2196F3">Create New Game</button>
+
+                <div id="gameInfo" class="hidden">
+                    <h3>Game Created!</h3>
+                    <p>Share this ID with your opponent:</p>
+                    <div class="game-id-display" id="gameIdDisplay"></div>
+                    <button onclick="copyGameId()" style="background:#FF9800">Copy Game ID</button>
+                    <div class="status" id="playerStatus">Waiting for opponent…</div>
+                </div>
+
+                <div id="playerRole" class="hidden"
+                    style="margin-top:15px;background:#555;padding:10px;border-radius:4px">
+                    <p><strong>You are:</strong> <span id="roleText"></span></p>
+                    <p><strong>Your name:</strong> <span id="myName"></span></p>
+                    <p><strong>Opponent:</strong> <span id="opponentStatus">Not joined</span></p>
+                </div>
+            </div>
+
+            <!-- Board -->
+            <div class="game-section">
+                <div id="board"></div>
+                <div class="info">
+                    <h3 id="gameTitle">Waiting to start…</h3>
+                    <div class="turn" id="turnDisplay"></div>
+                    <button onclick="resetGame()" style="width:100%;padding:10px;background:#f44336;margin-top:10px">
+                        New Game
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="main.js"></script>
 </body>
 
 </html>

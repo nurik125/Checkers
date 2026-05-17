@@ -4,73 +4,106 @@
     padding: 0;
 }
 
+html,
 body {
-    width: 100wh;
-    height: 100vh;
+    width: 100vw;
+    min-height: 100vh;
+    font-family: Arial, sans-serif;
+    background-color: #2a2a2a;
+    color: white;
+}
+
+body {
     display: flex;
-    justify-content: center;
+    flex-direction: column;
     align-items: center;
-    background-color: black;
+    padding: 20px;
 }
 
 #board {
+    width: 800px;
+    height: 800px;
     display: grid;
     grid-template-columns: repeat(8, 100px);
     grid-template-rows: repeat(8, 100px);
+    border: 4px solid #333;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.6);
+    margin: 20px auto;
 }
 
 .square {
+    user-select: none;
     display: flex;
     justify-content: center;
     align-items: center;
-
-    list-style: none;
-    text-decoration: none;
     width: 100px;
     height: 100px;
+}
 
-    &.even {
-        background-color: blue;
-    }
+.square.light {
+    background-color: #f0d9b5;
+}
 
-    &.odd {
-        background-color: inherit;
-    }
+.square.dark {
+    background-color: #8b4513;
+}
+
+.square.selected {
+    outline: 4px solid rgba(255, 255, 0, 0.8);
+}
+
+.square.valid-move {
+    background-color: rgba(0, 255, 0, 0.35);
+}
+
+.square.valid-capture {
+    background-color: rgba(255, 0, 0, 0.35);
 }
 
 .piece {
-    background-image: url('assets/Atari\ 2600\ -\ Checkers\ -\ Miscellaneous\ -\ Boards\ &\ Pieces.png');
-    background-repeat: no-repeat;
-
-    background-size: 3180px 1380px;
-    width: 54px;
-    height: 84px;
-
-    display: inline-block;
-    filter: drop-shadow(0 0 0 transparent) contrast(1.5) brightness(1.1);
-    mix-blend-mode: screen;
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.08), 0 4px 12px rgba(0, 0, 0, 0.35);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 28px;
+    font-weight: bold;
 }
 
 .piece.white {
-    background-position: -1px 0px;
+    background: radial-gradient(circle at 30% 30%, #ffffff 0%, #ececec 40%, #c9c9c9 100%);
+    color: #333;
 }
 
 .piece.black {
-    background-position: -112px 0px;
+    background: radial-gradient(circle at 30% 30%, #333333 0%, #111111 40%, #000000 100%);
+    color: #fff;
+}
+
+.piece.white-king::after,
+.piece.black-king::after {
+    content: "♔";
+    font-size: 34px;
 }
 
 .piece.white-king {
-    background-position: -57px 0px;
+    background: radial-gradient(circle at 30% 30%, #fffbf0 0%, #e0d8b0 40%, #c3b07f 100%);
 }
 
 .piece.black-king {
-    background-position: -168px 0px;
+    background: radial-gradient(circle at 30% 30%, #444444 0%, #222222 40%, #000000 100%);
 }
 
-.square.valid {
-    background-color: green;
+.status {
+    margin-top: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.08);
+    display: inline-block;
 }
 
-.square.danger {
-    background-color: red;
+.hidden {
+    display: none !important;
 }
