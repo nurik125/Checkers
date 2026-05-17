@@ -1,0 +1,191 @@
+/* =============================================
+   AUTH MODAL
+   Append this block to your existing style.css
+============================================= */
+
+/* Overlay */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, .75);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+.modal-overlay.hidden {
+    display: none;
+}
+
+/* Box */
+.modal-box {
+    background: #2a2a2a;
+    border: 1px solid #444;
+    border-radius: 12px;
+    padding: 36px 32px;
+    width: 100%;
+    max-width: 360px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, .6);
+    animation: modalIn .25s ease;
+}
+
+@keyframes modalIn {
+    from {
+        opacity: 0;
+        transform: translateY(-16px) scale(.97);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.modal-box h2 {
+    font-size: 1.8rem;
+    margin: 0 0 6px;
+    color: #fff;
+    letter-spacing: .5px;
+}
+
+.modal-sub {
+    color: #aaa;
+    margin: 0 0 24px;
+    font-size: .9rem;
+}
+
+/* Google button */
+.btn-google {
+    width: 100%;
+    padding: 11px 16px;
+    background: #fff;
+    color: #333;
+    border: none;
+    border-radius: 6px;
+    font-size: .95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s, box-shadow .15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-google:hover {
+    background: #f5f5f5;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .25);
+}
+
+.btn-google:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+/* Divider */
+.divider {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 18px 0;
+    color: #666;
+    font-size: .8rem;
+}
+
+.divider::before,
+.divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: #444;
+}
+
+/* Nickname group */
+.nickname-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.nickname-group input {
+    width: 100%;
+    padding: 10px 14px;
+    background: #1e1e1e;
+    border: 1px solid #555;
+    border-radius: 6px;
+    color: #fff;
+    font-size: .95rem;
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color .15s;
+}
+
+.nickname-group input:focus {
+    border-color: #2196F3;
+}
+
+.nickname-group input::placeholder {
+    color: #666;
+}
+
+.btn-guest {
+    width: 100%;
+    padding: 11px;
+    background: #2196F3;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: .95rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background .15s;
+}
+
+.btn-guest:hover {
+    background: #1976D2;
+}
+
+.btn-guest:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+/* Error / loading */
+.auth-error {
+    color: #e74c3c;
+    font-size: .85rem;
+    margin: 10px 0 0;
+    min-height: 1.2em;
+}
+
+.auth-loading {
+    color: #aaa;
+    font-size: .85rem;
+    margin: 8px 0 0;
+}
+
+.auth-loading.hidden {
+    display: none;
+}
+
+/* =============================================
+   PLAYER BADGE (top of lobby)
+============================================= */
+.player-badge {
+    text-align: center;
+    font-size: .85rem;
+    color: #ccc;
+    margin: -8px 0 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+/* =============================================
+   LOBBY WRAPPER  (hidden until auth)
+============================================= */
+#lobbyWrapper.hidden {
+    display: none;
+}
